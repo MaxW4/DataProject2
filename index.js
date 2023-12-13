@@ -1,75 +1,45 @@
+require ('dotenv/config');
+const { Client } = require('discord.js')
+const { OpenAI } = require('openai')
 
-require('dotenv/config');
-const { Client } = require('discord.js');
-const { OpenAI } = require('openai');
-
-const client = new Client({
-  intents: ['Guilds', 'GuildMembers', 'GuildMessages']
+const client = new Client ({intents: ['Guilds', 'GuildMembers', 'GuildMessages', 'MessageContent'],
 });
 
 client.on('ready', () => {
-  console.log('The bot is online!');
+    console.log('The bot is online!')
+
 });
 
-const configuration = new Configuration({
-  apiKey: process.env.API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
+const IGNORE_PREFIX = "!";
+const CHANNELS = ['1184256978520907930']
+const openai = new OpenAI({apiKey: process.env.OPENAI_KEY})
 
 client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (message.channel.id !== process.env.CHANNEL_ID) return;
-  if (message.content.startsWith('!')) return;
-
-  let conversationLog = [
-    { role: 'system', content: 'You are a friendly chatbot.' },
-  ];
-
-  try {
-    await message.channel.sendTyping();
-    let prevMessages = await message.channel.messages.fetch({ limit: 15 });
-    prevMessages.reverse();
+    if (message.author.bot) return;
+    if (message.content.startswith(IGNORE_PREFIX)) return;
+    if (!CHANNELS.includes(message.channelId) && !message.mentions.users.has(client.user.id)) return;
     
-    prevMessages.forEach((msg) => {
-      if (msg.content.startsWith('!')) return;
-      if (msg.author.id !== client.user.id && message.author.bot) return;
-      if (msg.author.id == client.user.id) {
-        conversationLog.push({
-          role: 'assistant',
-          content: msg.content,
-          name: msg.author.username
-            .replace(/\s+/g, '_')
-            .replace(/[^\w\s]/gi, ''),
-        });
-      }
+    const response = await openai.chat.completions
+        .create({ 
+        model: 'gpt-4',
+        messages: [
+            {//name:
+            role: 'system',
+            content: 'help'
 
-      if (msg.author.id == message.author.id) {
-        conversationLog.push({
-          role: 'user',
-          content: msg.content,
-          name: message.author.username
-            .replace(/\s+/g, '_')
-            .replace(/[^\w\s]/gi, ''),
-        });
-      }
-    });
+            },
+            {
+            //name:
+            role: 'user',
+            content: message.content,
+            }
 
-    const result = await openai
-      .createChatCompletion({
-        model: 'gpt-3.5-turbo',
-        messages: conversationLog,
-        // max_tokens: 256, // limit token usage
-      })
-      .catch((error) => {
-        console.log(`OPENAI ERR: ${error}`);
-      });
-    message.reply(result.data.choices[0].message);
-  } catch (error) {
-    console.log(`ERR: ${error}`);
-  }
+        ]
+
+    }).catch((error) => console.error('OpenAI Error:\n', error));
+
+message.reply(response.choices[0].message.content);
+
 });
 
 client.login(process.env.TOKEN);
-
-
