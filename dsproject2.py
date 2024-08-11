@@ -24,7 +24,7 @@ async def fetch_and_store_data():
 
 async def main():
     for i in range(60):
-        print(f"Fetching data at {datetime.now()}")  # For demonstration purposes
+        print(f"Fetching data at {datetime.now()}")  
         await fetch_and_store_data()
         await asyncio.sleep(60)  # Wait for 60 seconds
 
